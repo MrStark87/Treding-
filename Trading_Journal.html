@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trading Journal</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 1rem; }
+    h1 { text-align: center; color: #0dcaf0; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-weight: bold; margin-bottom: 0.25rem; }
+    input, textarea, select {
+      width: 100%; padding: 0.5rem; border-radius: 5px;
+      border: 1px solid #333; background: #1e1e1e; color: #fff;
+    }
+    button {
+      padding: 0.75rem 1.25rem; border: none;
+      background: #0dcaf0; color: #000; border-radius: 5px; cursor: pointer;
+      margin-top: 1rem;
+    }
+    table {
+      width: 100%; border-collapse: collapse; margin-top: 2rem; background: #1e1e1e;
+    }
+    th, td {
+      border: 1px solid #333; padding: 0.5rem; text-align: center;
+    }
+    th { background: #0dcaf0; color: #000; }
+    .delete-btn, .edit-btn {
+      background: #dc3545; color: #fff; border: none; padding: 0.25rem 0.5rem;
+      border-radius: 4px; cursor: pointer; margin: 0 2px;
+    }
+    .edit-btn { background: #ffc107; color: #000; }
+    #lockScreen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: flex; justify-content: center;
+      align-items: center; z-index: 9999; flex-direction: column;
+    }
+    #lockScreen input {
+      font-size: 1.2rem; text-align: center;
+      width: 100px; margin-top: 1rem;
+    }
+    #lockScreen h2 { color: #0dcaf0; }
+  </style>
+</head>
+<body>
+  <div id="lockScreen">
+    <h2>🔐 Enter 4-Digit PIN</h2>
+    <input type="password" id="pinInput" maxlength="4" />
+    <button onclick="checkPIN()">Unlock</button>
+  </div>
+
+  <h1>📒 Trading Journal</h1>
+  <div class="form">
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input type="date" id="date" />
+    </div>
+    <div class="form-group">
+      <label for="pair">Pair</label>
+      <input type="text" id="pair" placeholder="e.g. EURUSD, XAUUSD" />
+    </div>
+    <div class="form-group">
+      <label for="entry">Entry Price</label>
+      <input type="number" id="entry" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label for="sl">Stop Loss</label>
+      <input type="number" id="sl" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label for="tp">Take Profit</label>
+      <input type="number" id="tp" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label for="result">Profit / Loss (₹)</label>
+      <input type="number" id="result" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label for="reason">Reason / Setup</label>
+      <textarea id="reason" placeholder="e.g. FVG, BOS, CHoCH, etc."></textarea>
+    </div>
+    <button onclick="saveTrade()" id="saveBtn">💾 Save Trade</button>
+    <div class="form-group">
+      <label for="newPin">Change PIN</label>
+      <input type="password" id="newPin" maxlength="4" placeholder="New 4-digit PIN" />
+      <button onclick="changePIN()">Set New PIN</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Pair</th>
+        <th>Entry</th>
+        <th>SL</th>
+        <th>TP</th>
+        <th>Profit/Loss</th>
+        <th>Reason</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="journal"></tbody>
+  </table>
+
+  <script>
+    let journal = JSON.parse(localStorage.getItem('trades')) || [];
+    const journalBody = document.getElementById('journal');
+    let editIndex = -1;
+    const savedPIN = localStorage.getItem("trading_pin") || "1234";
+
+    function checkPIN() {
+      const entered = document.getElementById("pinInput").value;
+      if (entered === savedPIN) {
+        document.getElementById("lockScreen").style.display = "none";
+      } else {
+        alert("Incorrect PIN");
+      }
+    }
+
+    function changePIN() {
+      const newPin = document.getElementById("newPin").value;
+      if (newPin.length === 4 && /^\d{4}$/.test(newPin)) {
+        localStorage.setItem("trading_pin", newPin);
+        alert("PIN changed successfully!");
+      } else {
+        alert("Please enter a valid 4-digit PIN.");
+      }
+    }
+
+    function saveTrade() {
+      const trade = {
+        date: document.getElementById('date').value,
+        pair: document.getElementById('pair').value,
+        entry: document.getElementById('entry').value,
+        sl: document.getElementById('sl').value,
+        tp: document.getElementById('tp').value,
+        result: document.getElementById('result').value,
+        reason: document.getElementById('reason').value
+      };
+
+      if (editIndex > -1) {
+        journal[editIndex] = trade;
+        editIndex = -1;
+        document.getElementById('saveBtn').textContent = '💾 Save Trade';
+      } else {
+        journal.push(trade);
+      }
+
+      localStorage.setItem('trades', JSON.stringify(journal));
+      renderJournal();
+      clearForm();
+    }
+
+    function deleteTrade(index) {
+      journal.splice(index, 1);
+      localStorage.setItem('trades', JSON.stringify(journal));
+      renderJournal();
+    }
+
+    function editTrade(index) {
+      const trade = journal[index];
+      document.getElementById('date').value = trade.date;
+      document.getElementById('pair').value = trade.pair;
+      document.getElementById('entry').value = trade.entry;
+      document.getElementById('sl').value = trade.sl;
+      document.getElementById('tp').value = trade.tp;
+      document.getElementById('result').value = trade.result;
+      document.getElementById('reason').value = trade.reason;
+      editIndex = index;
+      document.getElementById('saveBtn').textContent = '✏️ Update Trade';
+    }
+
+    function clearForm() {
+      document.getElementById('date').value = '';
+      document.getElementById('pair').value = '';
+      document.getElementById('entry').value = '';
+      document.getElementById('sl').value = '';
+      document.getElementById('tp').value = '';
+      document.getElementById('result').value = '';
+      document.getElementById('reason').value = '';
+      document.getElementById('newPin').value = '';
+    }
+
+    function renderJournal() {
+      journalBody.innerHTML = '';
+      journal.forEach((trade, index) => {
+        const row = `<tr>
+          <td>${trade.date}</td>
+          <td>${trade.pair}</td>
+          <td>${trade.entry}</td>
+          <td>${trade.sl}</td>
+          <td>${trade.tp}</td>
+          <td>${trade.result}</td>
+          <td>${trade.reason}</td>
+          <td>
+            <button class='edit-btn' onclick='editTrade(${index})'>Edit</button>
+            <button class='delete-btn' onclick='deleteTrade(${index})'>Delete</button>
+          </td>
+        </tr>`;
+        journalBody.innerHTML += row;
+      });
+    }
+
+    renderJournal();
+  </script>
+</body>
+</html>
